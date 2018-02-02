@@ -9,5 +9,66 @@
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+        <StackPanel Margin="200,200,0,0">
+            <StackPanel Orientation="Horizontal">
+                <Button
+                    x:Name="LogIn"
+                    Content="Login"
+                    Click="LogIn_Click" />
+                <TextBlock
+                    x:Name="UserName"
+                    Padding="0,6,0,0"
+                    Margin="25,0,0,0"
+                    Text="" />
+            </StackPanel>
+            <StackPanel
+                x:Name="AliasStackPanel"
+                Orientation="Horizontal"
+                Margin="0,25,0,0"
+                Visibility="Collapsed">
+                <TextBlock
+                    Text="Alias"
+                    Padding="0,6,0,0" />
+                <TextBox
+                    x:Name="Alias"
+                    Margin="50,0,0,0"
+                    Width="120"
+                    PlaceholderText="rgdev09"
+                    Text="" />
+                <Button
+                    x:Name="LookupAliasButton"
+                    Content="Lookup OID"
+                    Margin="25,0,0,0"
+                    Click="LookupAliasButton_Click" />
+            </StackPanel>
+            <StackPanel
+                x:Name="OIDStackPanel"
+                Visibility="Collapsed">
+                <StackPanel
+                    Orientation="Horizontal"
+                    Margin="0,25,0,0">
+                    <TextBlock Text="OID =" />
+                    <TextBlock x:Name="OID" />
+                </StackPanel>
+                <StackPanel
+                    Orientation="Horizontal"
+                    Margin="0,25,0,0">
+                    <Button
+                        x:Name="Start"
+                        Content="Start"
+                        Click="Start_Click" />
+                    <Button
+                        x:Name="Stop"
+                        Content="Stop"
+                        Margin="25,0,0,0"
+                        Click="Stop_Click" />
+                    <TextBlock
+                        x:Name="Status"
+                        Margin="25,0,0,0"
+                        Text="{x:Bind Advertiser.Status, Mode=OneWay}" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+
     </Grid>
 </Page>
