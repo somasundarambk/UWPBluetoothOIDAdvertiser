@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.ApplicationModel.Core;
 using Windows.Devices.Bluetooth.Advertisement;
@@ -11,29 +11,13 @@ namespace UWPBluetoothOIDAdvertiser
 {
     public class BluetoothAdvertiser : INotifyPropertyChanged
     {
-        private const ushort MicrosoftCompanyCode = 0x0006; //Microsoft's Bluetooth SIG ID
-        private readonly byte[] TeamsProtoID = new byte[] { 0xF0, 0x34 }; // Microsoft Teams Meeting Room
-        private readonly byte[] version = new byte[] { 0x0 };
 
-        private BluetoothLEAdvertisementPublisher publisher = new BluetoothLEAdvertisementPublisher();
+        private const ushort microsoftCompanyCode = 0x0006; // Microsoft's Bluetooth SIG ID
+        private const byte protocolVersion = 0x0;
+        private const ushort roomBeaconProtocolId = 0xF034; // Example beacon protocol Id
+        private BluetoothLEAdvertisementPublisher publisher;
+
         public event PropertyChangedEventHandler PropertyChanged;
-
-        private bool isRunning = false;
-        public bool IsRunning
-        {
-            get
-            {
-                return isRunning;
-            }
-            private set
-            {
-                if (isRunning != value)
-                {
-                    isRunning = value;
-                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRunning)));
-                }
-            }
-        }
 
         private Guid oid;
         public Guid Oid
@@ -48,7 +32,7 @@ namespace UWPBluetoothOIDAdvertiser
                 {
                     oid = value;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Oid)));
-                    ChangeOID(oid);
+                    UpdateAdvertiser();
                 }
             }
         }
@@ -81,7 +65,7 @@ namespace UWPBluetoothOIDAdvertiser
 
         private BluetoothAdvertiser()
         {
-            publisher.StatusChanged += Publisher_StatusChanged;
+            UpdateAdvertiser();
         }
 
         public void Start()
@@ -94,30 +78,63 @@ namespace UWPBluetoothOIDAdvertiser
             publisher.Stop();
         }
 
-        private void ChangeOID(Guid oid)
+        #region Protected
+        protected virtual BluetoothLEManufacturerData CreateBluetoothLEManufacturerData(ushort companyId, byte[] data)
         {
-            if (publisher.Status == BluetoothLEAdvertisementPublisherStatus.Started ||
-                publisher.Status == BluetoothLEAdvertisementPublisherStatus.Waiting)
+            return new BluetoothLEManufacturerData(companyId, data.AsBuffer());
+        }
+
+        protected virtual BluetoothLEAdvertisementPublisherStatus GetBluetoothStatus()
+        {
+            return publisher.Status;
+        }
+
+        protected virtual void SubscribeToBluetoothStatusChanged()
+        {
+            publisher.StatusChanged += Publisher_StatusChanged;
+        }
+
+        protected virtual void UnsubscribeToBluetoothStatusChanged()
+        {
+            publisher.StatusChanged -= Publisher_StatusChanged;
+        }
+        #endregion
+
+        private BluetoothLEManufacturerData CreateAdvertiserPayload(Guid oid)
+        {
+            var data = new List<byte>();
+            data.AddRange(BitConverter.GetBytes(roomBeaconProtocolId));
+            data.Add(protocolVersion);
+            data.AddRange(oid.ToByteArray());
+
+            return CreateBluetoothLEManufacturerData(microsoftCompanyCode, data.ToArray());
+        }
+
+        private void UpdateAdvertiser()
+        {
+            try
             {
-                publisher.Stop();
+                if (publisher != null)
+                {
+                    Stop();
+                    UnsubscribeToBluetoothStatusChanged();
+                    publisher = null;
+                }
+
+                if (Guid.Empty != Oid)
+                {
+                    publisher = new BluetoothLEAdvertisementPublisher();
+                    SubscribeToBluetoothStatusChanged();
+                    publisher.Advertisement.ManufacturerData.Add(CreateAdvertiserPayload(oid));
+                    Start();
+                }
             }
-
-            publisher.Advertisement.ManufacturerData.Clear();
-            var paylod = CreatePayload(oid);
-            var ind = BitConverter.IsLittleEndian;
-            publisher.Advertisement.ManufacturerData.Add(CreatePayload(oid));
+            catch (Exception)
+            {
+            }
         }
 
-        private BluetoothLEManufacturerData CreatePayload(Guid oid)
-        {
-            return new BluetoothLEManufacturerData(
-                companyId: MicrosoftCompanyCode,
-                data: TeamsProtoID.Concat(version).Concat(oid.ToByteArray()).ToArray().AsBuffer());
-        }
-
-        private async void Publisher_StatusChanged(
-            BluetoothLEAdvertisementPublisher sender,
-            BluetoothLEAdvertisementPublisherStatusChangedEventArgs args)
+        private async void Publisher_StatusChanged(BluetoothLEAdvertisementPublisher sender, BluetoothLEAdvertisementPublisherStatusChangedEventArgs args)
         {
             await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
